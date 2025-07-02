@@ -1,0 +1,39 @@
+🚀 GitHub上传命令 - 为用户 yanruoyi999
+
+=== 第一步：在GitHub创建仓库 ===
+1. 访问 https://github.com/yanruoyi999
+2. 点击 "New" 或右上角 "+" → "New repository"
+3. 仓库名称：shadcn-landing-page-ghibli-1.8
+4. 描述：Modern AI-powered Ghibli-style image generator v1.8 with enhanced security and performance
+5. 选择 Public 或 Private
+6. 不要勾选任何初始化选项（README、.gitignore、License）
+7. 点击 "Create repository"
+
+=== 第二步：执行以下命令上传代码 ===
+
+# 进入项目目录
+cd "/Users/yanruoyi/Desktop/cursor/shadcn-landing-page-ghibli-1.8"
+
+# 添加GitHub远程仓库
+git remote add origin https://github.com/yanruoyi999/shadcn-landing-page-ghibli-1.8.git
+
+# 推送代码到GitHub
+git push -u origin main
+
+=== 上传后的仓库地址 ===
+https://github.com/yanruoyi999/shadcn-landing-page-ghibli-1.8
+
+=== 项目包含的内容 ===
+✅ 完整的Next.js 14 + TypeScript应用
+✅ AI图像生成功能（文本到图像 & 图像到图像）
+✅ 宫崎骏风格艺术创作
+✅ 安全性增强（输入验证、速率限制）
+✅ 性能优化（React.memo、图像压缩）
+✅ 国际化支持（中英文）
+✅ 响应式设计和暗黑模式
+✅ 详细的README文档
+✅ 环境变量配置模板
+✅ 错误处理和边界保护
+
+=== 78个文件已准备上传 ===
+包括所有源代码、组件、工具库、文档等
