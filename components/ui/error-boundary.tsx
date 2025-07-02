@@ -64,7 +64,7 @@ export function ErrorBoundary({
       FallbackComponent={Fallback}
       onError={(error, errorInfo) => {
         console.error('Error caught by boundary:', error, errorInfo)
-        onError?.(error, errorInfo)
+        onError?.(error, { componentStack: errorInfo.componentStack || '' })
       }}
       onReset={() => {
         // Clear any error state if needed
