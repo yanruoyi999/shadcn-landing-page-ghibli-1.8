@@ -4,6 +4,8 @@ import { v4 as uuidv4 } from 'uuid'
 import { generateImageSchema, RATE_LIMITS } from '@/lib/validation'
 import { rateLimiter } from '@/lib/rate-limiter'
 import { SafeApiError, createErrorResponse, getClientIP } from '@/lib/error-handler'
+import { createClient } from '@/lib/supabase/server'
+import { getUserSubscription, incrementUserUsage, canUserGenerate } from '@/lib/subscription'
 
 // Ghibli style prompt template
 const GHIBLI_STYLE = "Studio Ghibli anime style, soft watercolor background, warm and muted color palette, gentle thin outlines, peaceful atmosphere, hand-drawn aesthetic with a vintage paper texture."
@@ -91,12 +93,39 @@ export async function POST(request: NextRequest) {
   const startTime = Date.now()
   
   try {
-    // Rate limiting
+    // 验证用户认证
+    const supabase = createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+
+    if (authError || !user) {
+      throw new SafeApiError('用户未认证，请先登录', 401, 'UNAUTHENTICATED')
+    }
+
+    // 获取用户订阅信息
+    const userSubscription = await getUserSubscription(user.id)
+    
+    if (!userSubscription) {
+      throw new SafeApiError('无法获取用户订阅信息', 500, 'SUBSCRIPTION_ERROR')
+    }
+
+    // 检查用户是否可以生成图像（基于订阅限制）
+    if (!canUserGenerate(userSubscription)) {
+      const planName = userSubscription.subscription_plan.toUpperCase()
+      const limit = userSubscription.images_limit === -1 ? '无限制' : userSubscription.images_limit
+      
+      throw new SafeApiError(
+        `您今日的生成次数已用完。当前计划 (${planName}) 每日限制: ${limit}次。请升级您的订阅计划以获得更多生成次数。`, 
+        429, 
+        'SUBSCRIPTION_LIMIT_EXCEEDED'
+      )
+    }
+
+    // Rate limiting (备用限制，防止滥用)
     const clientIP = getClientIP(request)
     const { maxRequests, windowMs } = RATE_LIMITS.GENERATE_IMAGE
     
     if (!rateLimiter.isAllowed(clientIP, maxRequests, windowMs)) {
-      throw new SafeApiError('Too many requests. Please try again later.', 429, 'RATE_LIMITED')
+      throw new SafeApiError('请求过于频繁，请稍后再试', 429, 'RATE_LIMITED')
     }
 
     // Validate request body
@@ -236,17 +265,29 @@ export async function POST(request: NextRequest) {
 
     // Store to R2 and return success response
     const r2ImageUrl = await downloadAndStoreToR2(imageUrl)
+    
+    // 增加用户使用量计数
+    try {
+      await incrementUserUsage(user.id, 1)
+    } catch (error) {
+      console.error('Failed to increment user usage:', error)
+      // 不阻止图像生成，只记录错误
+    }
+    
     const totalTime = Date.now() - startTime
 
     return Response.json({
       success: true,
       imageUrl: r2ImageUrl,
-      message: "Image generated successfully!",
+      message: "图像生成成功！",
       stats: {
         totalTime: `${totalTime}ms`,
         model: input_image ? "flux-kontext-pro (Replicate)" : "flux-kontext-pro (Ismaque)",
         aspectRatio: aspectRatio,
-        promptLength: prompt.length
+        promptLength: prompt.length,
+        remainingGenerations: userSubscription.images_limit === -1 
+          ? -1 
+          : Math.max(0, userSubscription.images_limit - userSubscription.images_used_today - 1)
       }
     })
 
